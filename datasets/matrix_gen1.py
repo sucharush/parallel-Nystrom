@@ -1,5 +1,8 @@
-import numpy as np
+import bz2
+import pandas as pd
+import numpy as np 
 
+# -----------------------For the first dataset-------------------------
 def poly_decay_matrix(n, R, p):
     """
     Generate a Polynomial Decay matrix.
@@ -58,6 +61,41 @@ np.save("poly_decay_fast.npy", poly_decay_fast)
 np.save("exp_decay_slow.npy", exp_decay_slow)
 np.save("exp_decay_med.npy", exp_decay_med)
 np.save("exp_decay_fast.npy", exp_decay_fast)
+
+# -----------------------For the second dataset-------------------------
+# read mnist dataset
+with bz2.open("data/mnist.bz2") as f:
+    mnist = pd.read_csv(f)   
+data = mnist['Z']
+
+# read and process year prediction dataset
+def parse_libsvm_line(line):
+    elements = line.strip().split()
+    label = elements[0]
+    indices = []
+    values = []
+    for elem in elements[1:]:
+        index, value = elem.split(":")
+        indices.append(int(index) - 1)  # LIBSVM indices are 1-based, convert to 0-based
+        values.append(float(value))
+    return label, indices, values
+
+def read_libsvm_bz2(filepath):
+    data = []
+    labels = []
+    with bz2.open(filepath, 'rt') as file:
+        for line in file:
+            label, indices, values = parse_libsvm_line(line)
+            labels.append(label)
+            feature_array = np.zeros(90)
+            feature_array[indices] = values
+            data.append(feature_array)
+    return pd.DataFrame(data, columns=[f'Feature_{i+1}' for i in range(90)]), labels
+features_df, _ = read_libsvm_bz2("data/YearPredictionMSD.bz2")
+
+# only the first 10000 columns are saved
+np.save( "mnist.npy", data)
+np.save("year_prediction.npy",features_df.values[:10000]) 
 
 print("Matrices saved as .npy files.")
 
