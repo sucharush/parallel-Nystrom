@@ -1,4 +1,5 @@
 import numpy as np
+from sklearn.metrics.pairwise import rbf_kernel
 def svd_factorization(Q, R):
     """
     Compute the truncated SVD of the matrix R and then compute U_k.
@@ -38,17 +39,31 @@ def relative_nuclear_norm_error(A, A_hat):
     - float: The relative nuclear norm error.
     """
     # Compute the nuclear norm of A
-    U, S, Vt = np.linalg.svd(A, full_matrices=False)
-    nuclear_norm_A = np.sum(S)
+    # U, S, Vt = np.linalg.svd(A, full_matrices=False)
 
     # Compute the residual matrix (A - A_hat)
     residual = A - A_hat
-
-    # Compute the nuclear norm of the residual
-    U_res, S_res, Vt_res = np.linalg.svd(residual, full_matrices=False)
-    nuclear_norm_residual = np.sum(S_res)
+    nuclear_norm_residual = np.linalg.norm(residual, ord="nuc")
 
     # Compute the relative nuclear norm error
-    relative_error = nuclear_norm_residual / nuclear_norm_A
+    relative_error = nuclear_norm_residual / A.shape[0]
 
     return relative_error
+
+def load_mnist(nrows, gamma=1e-4):
+    try:
+        matrix = np.load('datasets/mnist.npy')[: nrows]
+        A = rbf_kernel(matrix, gamma=gamma)
+        return A
+    except Exception as e:
+        print(f"An error occurred while loading or building the kernel: {e}")
+        return None
+    
+def load_year(nrows, gamma=1e-8):
+    try:
+        matrix = np.load('datasets/year_prediction.npy')[: nrows]
+        A = rbf_kernel(matrix, gamma=gamma)
+        return A
+    except Exception as e:
+        print(f"An error occurred while loading or building the kernel: {e}")
+        return None

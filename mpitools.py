@@ -2,6 +2,7 @@ import numpy as np
 import torch # This should print the version number of PyTorch
 from hadamard_transform import  hadamard_transform
 from math import ceil
+import scipy.linalg as sla
 
 def generate_local_sketching(comm, comm_row, n, l, type = 'G'):
     size = comm.Get_size()
@@ -45,20 +46,27 @@ def generate_local_sketching(comm, comm_row, n, l, type = 'G'):
                     # Generate the conponents for SRHT
                     d_l = np.random.choice([-1, 1], l)
                     d_r = np.random.choice([-1, 1], n_blocks)
-                    D_L = np.diag(d_l).astype('d')
-                    D_R = np.diag(d_r).astype('d')
+                    # D_L = np.diag(d_l).astype('d')
+                    # D_R = np.diag(d_r).astype('d')
                     # print(d_l, d_r)
                 else:
-                    D_L = np.empty((l, l), dtype='d')
-                    D_R = np.empty((n_blocks, n_blocks), dtype='d')
+                    d_l = np.empty((l,), dtype=int)
+                    d_r = np.empty((n_blocks,), dtype=int)
+                    # D_L = np.empty((l, l), dtype='d')
+                    # D_R = np.empty((n_blocks, n_blocks), dtype='d')
                 # Broadcast
-                comm_row.Bcast(D_L, root=0) 
-                comm_row.Bcast(D_R, root=0) 
-        # form block SRHT
-        x = D_R
-        x = np.array([hadamard_transform(torch.from_numpy(x[:, i])).numpy() for i in range(n_blocks)]).T # change it back to column-wise!!!
+                comm_row.Bcast(d_l, root=0) 
+                comm_row.Bcast(d_r, root=0) 
+                # comm_row.Bcast(D_L, root=0) 
+                # comm_row.Bcast(D_R, root=0) 
+        # form block SRHT (use explicit computation here since it's faster than applying Hadmard transform)
+        H = sla.hadamard(n_blocks)
+        # print(d_r[np.newaxis, :])
+        x = H * d_r[np.newaxis, :]
+        # x = np.array([hadamard_transform(torch.from_numpy(x[:, i])).numpy() for i in range(n_blocks)]).T # change it back to column-wise!!!
         x = x[P, :]
-        x = np.sqrt(n/(l*npr)) * np.transpose(D_L @ x)
+        x = d_l[:, np.newaxis] * x
+        x = np.sqrt(n/(l*npr)) * x.T
     return x
 
 def computeR(comm, local_R, local_Qs):
